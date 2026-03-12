@@ -1,17 +1,28 @@
-out/slides.pdf: slides.tex
-	# you need to run pdflatex command twice if you're having issues 
-	# getting TOC or top progress bar to show up in resulting pdf
-	mkdir -p out
-	pdflatex --output-directory=out slides.tex
+LATEX=xelatex
+LATEXFLAGS=-interaction=nonstopmode -halt-on-error
+OUTDIR=out
 
-view-xpdf: out/slides.pdf
-	xpdf out/slides.pdf & disown
+all: $(OUTDIR)/slides.pdf $(OUTDIR)/script.pdf
 
-view-okular: out/slides.pdf
-	okular out/slides.pdf & disown
+$(OUTDIR):
+	mkdir -p $(OUTDIR)
 
-view-acroread: out/slides.pdf
-	acroread out/slides.pdf & disown
+$(OUTDIR)/slides.pdf: slides.tex | $(OUTDIR)
+	$(LATEX) $(LATEXFLAGS) -output-directory=$(OUTDIR) slides.tex
+	$(LATEX) $(LATEXFLAGS) -output-directory=$(OUTDIR) slides.tex
+
+$(OUTDIR)/script.pdf: script.tex | $(OUTDIR)
+	$(LATEX) $(LATEXFLAGS) -output-directory=$(OUTDIR) script.tex
+	$(LATEX) $(LATEXFLAGS) -output-directory=$(OUTDIR) script.tex
+
+view-xpdf: $(OUTDIR)/slides.pdf
+	xpdf $(OUTDIR)/slides.pdf & disown
+
+view-okular: $(OUTDIR)/slides.pdf
+	okular $(OUTDIR)/slides.pdf & disown
+
+view-acroread: $(OUTDIR)/slides.pdf
+	acroread $(OUTDIR)/slides.pdf & disown
 
 clean:
-	rm -rf out
+	rm -rf $(OUTDIR)
