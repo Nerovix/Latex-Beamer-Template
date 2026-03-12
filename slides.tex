@@ -14,15 +14,11 @@
   columns=fullflexible
 }
 
-\newcommand{\imgplaceholder}[1]{%
-  \fbox{\parbox[c][3.0cm][c]{0.92\linewidth}{\centering\small 占位图：#1}}
-}
-
 \title{AI算力中心任务调度问题题解}
 \subtitle{在线优化建模 + 启发式最优化策略}
 \author{讲题人：你}
 \institute{中关村文理学院（模拟场景）}
-\date{20分钟讲解版}
+\date{讲题版}
 
 \begin{document}
 
@@ -36,7 +32,7 @@
 
 \section{题意与建模}
 
-\begin{frame}{1. 背景与建模对象（1.5 min）}
+\begin{frame}{背景与建模对象}
 \textbf{场景：}校内 AI 计算中心给同学提供免费算力，调度程序要在主机上实时响应请求。\\[4pt]
 \textbf{系统总资源：}
 \begin{itemize}
@@ -47,12 +43,11 @@
 \textbf{任务公开信息：}
 \begin{itemize}
   \item 需求 $(k_i,m_i)$、段长 $t_i$、重要性 $W_i$
-  \item 任务编号递增，进程编号 $0\sim n-1$
+  \item checkpoint 总数 $c_i$ 在任务完成前未知
 \end{itemize}
-\imgplaceholder{“任务流 + 多资源池 + 进程槽位”框图}
 \end{frame}
 
-\begin{frame}{2. 任务模型与目标函数（2 min）}
+\begin{frame}{任务模型与目标函数}
 任务 $i$ 的 checkpoint 机制：
 \begin{itemize}
   \item 开始时刻算第一个 checkpoint
@@ -67,11 +62,11 @@
 其中 $T_i$ 是从任务发出到最终完成的总周转时间。
 \end{frame}
 
-\begin{frame}{3. checkpoint 与抢占语义（1.5 min）}
+\begin{frame}{抢占语义与调度矛盾}
 \begin{itemize}
   \item 允许抢占，抢占本身不消耗时间。
-  \item 但若不在 checkpoint 边界抢占，会丢失“上个 checkpoint 后”全部进度。
-  \item 所以段内抢占的真实代价与“已跑段长”正相关。
+  \item 若不在 checkpoint 边界抢占，会丢失“上个 checkpoint 后”全部进度。
+  \item 段内抢占代价与“已跑段长”正相关。
 \end{itemize}
 \vspace{4pt}
 调度核心矛盾：
@@ -79,10 +74,9 @@
   \item 继续跑旧任务：保护已投入进度
   \item 抢占上新任务：降低高价值任务等待损失
 \end{itemize}
-\imgplaceholder{“段内进度回滚 + checkpoint 无损切换”时间轴}
 \end{frame}
 
-\begin{frame}{4. 交互机制、合法性与评分（2 min）}
+\begin{frame}{交互机制、合法性与评分}
 \textbf{接口：}
 \texttt{Init(...)}、\texttt{Event(now,event)}，并可调用 \texttt{Schedule} / \texttt{Appoint}。\\[2pt]
 \textbf{事件：}checkpoint / 结束 / 新任务 / 预约事件。\\[2pt]
@@ -100,7 +94,7 @@ score=15\cdot\min\!\left(\frac{0.95\cdot std\_perf}{your\_perf},1\right)
 
 \section{题解推导与策略设计}
 
-\begin{frame}{5. 从目标函数推导“单位等待边际代价”（1.5 min）}
+\begin{frame}{从目标函数推导边际代价}
 先看单任务代价项：
 \[
 F_i=\frac{W_i T_i}{c_i t_i}
@@ -110,13 +104,10 @@ F_i=\frac{W_i T_i}{c_i t_i}
 \Delta F_i \approx \frac{W_i}{c_i t_i}
 \]
 这就是任务 $i$ 当前“再等 1 小时”的边际损失。\\[4pt]
-因此在线调度直觉：
-\begin{block}{自然优先级原则}
-优先运行边际损失 $\frac{W_i}{c_i t_i}$ 更大的任务。
-\end{block}
+因此在线调度直觉：优先运行边际损失 $\frac{W_i}{c_i t_i}$ 更大的任务。
 \end{frame}
 
-\begin{frame}{6. 关键难点：$c_i$ 未知，改成在线估计（1.5 min）}
+\begin{frame}{未知段数的在线估计}
 由于真实 $c_i$ 在完成前不可见，定义估计：
 \[
 \hat c_i=\text{checkpoints\_passed}_i+\text{mean\_segments}
@@ -132,7 +123,7 @@ F_i=\frac{W_i T_i}{c_i t_i}
 \end{itemize}
 \end{frame}
 
-\begin{frame}{7. 全局先验如何更新：指数平滑（1.5 min）}
+\begin{frame}{先验更新：指数平滑}
 任务完成时可观测到其总段数近似：
 \[
 c_i\approx \text{checkpoints\_passed}_i+1
@@ -146,10 +137,9 @@ c_i\approx \text{checkpoints\_passed}_i+1
   \item $\alpha$ 小：更平滑、更稳
   \item $\alpha$ 大：更快跟踪分布漂移
 \end{itemize}
-\textbf{对应代码参数：} \texttt{MEAN\_SEGMENTS\_PRIOR} + \texttt{MEAN\_SEGMENTS\_ALPHA}。
 \end{frame}
 
-\begin{frame}{8. 当前时刻的理想决策：约束最优化（2 min）}
+\begin{frame}{当前时刻的约束最优化}
 选运行集合 $S$，满足：
 \[
 |S|\le n,\quad \sum_{i\in S}k_i\le K,\quad \sum_{i\in S}m_i\le M
@@ -162,10 +152,10 @@ c_i\approx \text{checkpoints\_passed}_i+1
 \[
 \max_{S}\ \sum_{i\in S}\phi_i
 \]
-\textbf{结论：}这是一个三重约束（数量/GPU/内存）的在线装箱-背包问题。
+这是一个三重约束（数量/GPU/内存）的在线装箱-背包问题。
 \end{frame}
 
-\begin{frame}{9. 启发式贪心：价值与资源体积的比值（2 min）}
+\begin{frame}{启发式贪心评分设计}
 精确求最优过慢，采用可在线重算的贪心评分。\\[-2pt]
 定义资源体积：
 \[
@@ -180,10 +170,9 @@ score_i=\frac{\phi_i}{d_i\cdot t_i^{\theta}}
   \item 分母 $d_i$：资源占用强度
   \item $t_i^{\theta}$：轻微长段惩罚，提高调度灵活性
 \end{itemize}
-按 $score$ 降序尝试装入，不违反 $(n,K,M)$ 就选入。
 \end{frame}
 
-\begin{frame}{10. 为什么要加 $t_i^{\theta}$ 惩罚（1 min）}
+\begin{frame}{长段惩罚项的意义}
 若 $t_i$ 很大：
 \begin{itemize}
   \item 下一次无损切换点（checkpoint）来得更慢
@@ -196,7 +185,7 @@ score_i\propto \frac{1}{t_i^{\theta}}
 不是追求公平，而是控制段内抢占风险、提升全局可调度性。
 \end{frame}
 
-\begin{frame}{11. 从理想集合 $S$ 到真实进程映射（1.5 min）}
+\begin{frame}{从理想集合到真实进程映射}
 \textbf{Step 1：}保留“当前在跑且仍属于 $S$”的任务（不动最省）。\\
 \textbf{Step 2：}构造 \texttt{need\_start}：属于 $S$ 但未运行的任务。\\
 \textbf{Step 3：}逐个安置 \texttt{need\_start}：
@@ -204,10 +193,9 @@ score_i\propto \frac{1}{t_i^{\theta}}
   \item 优先放空闲进程（无抢占成本）
   \item 放不下再考虑抢占不在 $S$ 中的运行任务
 \end{itemize}
-\textbf{工程意义：}把“理论最优集合”变成“最小扰动的可执行调度”。
 \end{frame}
 
-\begin{frame}{12. 段内抢占阈值：收益必须覆盖损失（2 min）}
+\begin{frame}{段内抢占阈值不等式}
 新任务 $i$ 想抢占运行任务 $j$，记：
 \[
 s_j=\text{本段已运行时长},\quad r_j=t_j-s_j
@@ -218,11 +206,10 @@ s_j=\text{本段已运行时长},\quad r_j=t_j-s_j
 \[
 \phi_i r_j > \lambda\,\phi_j s_j,\quad \lambda\ge1
 \]
-才允许段内抢占。\\
-\textbf{解释：}新任务足够“贵”且旧任务已跑段损失可接受，才值得打断。
+才允许段内抢占。
 \end{frame}
 
-\begin{frame}{13. 多候选可抢占时：选最小驱逐代价（1.5 min）}
+\begin{frame}{驱逐代价最小化}
 对候选被驱逐任务 $j$ 定义：
 \[
 \text{evict\_cost}(j)=\lambda_1\phi_j s_j+\lambda_2\phi_j r_j
@@ -232,10 +219,9 @@ s_j=\text{本段已运行时长},\quad r_j=t_j-s_j
   \item 第二项：临近 checkpoint 的保护项
 \end{itemize}
 在“资源可行 + 通过抢占阈值”的候选进程中，取 \texttt{evict\_cost} 最小者。
-\imgplaceholder{“多个候选进程的驱逐代价柱状对比图”}
 \end{frame}
 
-\begin{frame}{14. 事件驱动状态维护（1.5 min）}
+\begin{frame}{事件驱动状态维护}
 \textbf{type=3 新任务：}创建 WAITING，记录 \texttt{waiting\_since=now}。\\
 \textbf{type=1 checkpoint：}\texttt{checkpoints\_passed++}，刷新段起点。\\
 \textbf{type=2 完成：}释放资源、更新 \texttt{mean\_segments}、删除任务。\\
@@ -250,19 +236,19 @@ waiting\_accum+(now-waiting\_since),& WAITING
 每次状态切换可 $O(1)$ 更新。
 \end{frame}
 
-\begin{frame}{15. 复杂度与时限把控（1.5 min）}
+\begin{frame}{复杂度与时限把控}
 设当前未完成任务数为 $N$：
 \begin{itemize}
   \item 计算评分：$O(N)$
-  \item 选前列候选 + 局部排序：近似 $O(N\log N)$（可用 \texttt{nth\_element} 降常数）
+  \item 选前列候选 + 局部排序：近似 $O(N\log N)$
   \item 贪心装箱：$O(N)$
   \item 进程映射/候选抢占：与进程数 $n$ 线性相关
 \end{itemize}
 单次事件主复杂度约 $O(N\log N)$，可覆盖题目 1e4 任务规模。\\
-工程上还可采用“并非每次事件都全量重算”的降频策略。
+工程上可采用“并非每次事件都全量重算”的降频策略。
 \end{frame}
 
-\begin{frame}{16. 总结：最终策略的一句话（1 min）}
+\begin{frame}{总结}
 \begin{block}{核心结论}
 每次事件时重估“谁再等 1 小时最亏”（$\phi_i$），在 $(n,K,M)$ 约束下选最值得跑的集合；已在跑且仍应跑的尽量不动；仅当新任务收益显著大于丢段代价时才段内抢占，并选择最小驱逐代价目标。
 \end{block}
