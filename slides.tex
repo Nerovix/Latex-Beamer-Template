@@ -16,9 +16,9 @@
 
 \title{AI算力中心任务调度问题题解}
 \subtitle{在线优化建模 + 启发式最优化策略}
-\author{讲题人：你}
-\institute{中关村文理学院（模拟场景）}
-\date{讲题版}
+% \author{}
+\institute{第二届CCF算法能力大赛（CACC）区域赛}
+\date{}
 
 \begin{document}
 
@@ -233,19 +233,20 @@ waiting\_accum,& RUNNING\\
 waiting\_accum+(now-waiting\_since),& WAITING
 \end{cases}
 \]
-每次状态切换可 $O(1)$ 更新。
 \end{frame}
 
 \begin{frame}{复杂度与时限把控}
-设当前未完成任务数为 $N$：
+设当前未完成任务数为 $N$。
 \begin{itemize}
   \item 计算评分：$O(N)$
   \item 选前列候选 + 局部排序：近似 $O(N\log N)$
   \item 贪心装箱：$O(N)$
   \item 进程映射/候选抢占：与进程数 $n$ 线性相关
 \end{itemize}
-单次事件主复杂度约 $O(N\log N)$，可覆盖题目 1e4 任务规模。\\
-工程上可采用“并非每次事件都全量重算”的降频策略。
+单次事件主复杂度约 $O(N\log N)$。
+通常 $N$ 比总任务小一到两个数量级，但尽管如此，如果每次事件都全量重算，时间上也难以接受。
+工程上可采用“并非每次事件都全量重算”的降频策略：例如前1000个事件每次都重新评估装载，此后每5个事件进行一次评估装载。
+由于样例的分布与测试数据，大家可以在本地做充分的测试和调参，找到一个在效率和效果上都较优的平衡点后进行提交。
 \end{frame}
 
 \begin{frame}{总结}
@@ -254,7 +255,7 @@ waiting\_accum+(now-waiting\_since),& WAITING
 \end{block}
 \vspace{4pt}
 \centering
-\Large Thanks \& Q\&A
+\Large Thanks 
 \end{frame}
 
 \end{document}
