@@ -1,314 +1,260 @@
-\documentclass[10pt,aspectratio=43,mathserif,table]{beamer} 
-%设置为 Beamer 文档类型，设置字体为 10pt，长宽比为16:9，数学字体为 serif 风格
-\batchmode
-
-\usepackage{graphicx}
-\usepackage{animate}
+\documentclass[10pt,aspectratio=169]{beamer}
+\usepackage[UTF8]{ctex}
+\usetheme{Berlin}
+\usecolortheme{sustech}
+\usepackage{amsmath,amssymb,booktabs,listings,xcolor}
 \usepackage{hyperref}
 
-%导入一些用到的宏包
-\usepackage{amsmath,bm,amsfonts,amssymb,enumerate,epsfig,bbm,calc,color,ifthen,capt-of,multimedia,hyperref}
-\usepackage{xeCJK} %导入中文包
-\setCJKmainfont{SimHei} %字体采用黑体  Microsoft YaHei
-
-\usetheme{Berlin} %主题
-\usecolortheme{sustech} %主题颜色
-
-\usepackage[ruled,linesnumbered]{algorithm2e}
-
-\usepackage{fancybox}
-\usepackage{xcolor}
-\usepackage{times}
-\usepackage{listings}
-
-\usepackage{booktabs}
-\usepackage{colortbl}
-
-\newcommand{\Console}{Console}
-\lstset{ %
-	backgroundcolor=\color{white},   % choose the background color
-	basicstyle=\footnotesize\rmfamily,     % size of fonts used for the code
-	columns=fullflexible,
-	breaklines=true,                 % automatic line breaking only at whitespace
-	captionpos=b,                    % sets the caption-position to bottom
-	tabsize=4,
-	commentstyle=\color{mygreen},    % comment style
-	escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
-	keywordstyle=\color{blue},       % keyword style
-	stringstyle=\color{mymauve}\ttfamily,     % string literal style
-	numbers=left, 
-	%	frame=single,
-	rulesepcolor=\color{red!20!green!20!blue!20},
-	% identifierstyle=\color{red},
-	language=c
+\definecolor{codegray}{RGB}{245,245,245}
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{codegray},
+  breaklines=true,
+  columns=fullflexible
 }
 
-\setsansfont{Microsoft YaHei}
-\setmainfont{Microsoft YaHei}
-
-\definecolor{mygreen}{rgb}{0,0.6,0}
-\definecolor{mymauve}{rgb}{0.58,0,0.82}
-\definecolor{mygray}{gray}{.9}
-\definecolor{mypink}{rgb}{.99,.91,.95}
-\definecolor{mycyan}{cmyk}{.3,0,0,0}
-
-%题目，作者，学校，日期
-\title{Reinventing the Wheel: Publishing High-quality Slides}
-\subtitle{\fontsize{9pt}{14pt}\textbf{利用公共网关的SMS生态系统的安全性描述}}
-\author{答辩人: 李易峰 \newline \newline 指导老师: 吴亦凡教授}
-\institute{\fontsize{8pt}{14pt}中北大学英雄与联盟工程学院}
-\date{\today}
-
-%学校Logo
-%\pgfdeclareimage[height=0.5cm]{sustech-logo}{sustech-logo.pdf}
-%\logo{\pgfuseimage{sustech-logo}\hspace*{0.3cm}}
-
-\AtBeginSection[]
-{
-	\begin{frame}<beamer>
-	\frametitle{\textbf{目录}}
-	\tableofcontents[currentsection]
-\end{frame}
+\newcommand{\imgplaceholder}[1]{%
+  \fbox{\parbox[c][3.2cm][c]{0.92\linewidth}{\centering\small 占位图：#1}}
 }
-\beamerdefaultoverlayspecification{<+->}
-% -----------------------------------------------------------------------------
+
+\title{AI算力中心任务调度问题题解}
+\subtitle{在线调度 + 资源约束 + 可抢占 checkpoint 模型}
+\author{讲题人：你}
+\institute{中关村文理学院（模拟场景）}
+\date{20分钟讲解版}
+
 \begin{document}
-% -----------------------------------------------------------------------------
-
-\frame{\titlepage}
-
-\section[目录]{}   %目录
-\begin{frame}{目录}
-\tableofcontents
-\end{frame}
-
-% -----------------------------------------------------------------------------
-\section{引言}  %引言
-\subsection{研究背景}
-\begin{frame}{研究背景}
-\begin{columns}[T] % align columns
-\begin{column}<0->{.40\textwidth}
-	\begin{figure}[thpb]
-		\centering
-		\resizebox{1\linewidth}{!}{
-			\includegraphics{figures/sustech.pdf}
-		}
-		%\includegraphics[scale=1.0]{figurefile}
-		\caption{SUSTech Campus}
-		\label{fig:campus}
-	\end{figure}
-\end{column}%
-\hfill%
-\begin{column}<0->{.65\textwidth}
-	\begin{itemize}
-		\item<1-> 短信息(SMS)成为现代通讯的重要组成部分
-		\begin{itemize}
-			\item<1-> 很多组织或网站使用短信息作为身份验证的辅助通道
-		\end{itemize}
-		\item<2-> 现代短消息的发送，在抵达终端之前不接触蜂窝网络
-		\begin{itemize}
-			\item<2-> 短信息(SMS)成为现代通讯的重要组成部分
-		\end{itemize}
-	\end{itemize}
-\end{column}%
-\end{columns}
-\end{frame}
-\subsection{主要工作}
-\begin{frame}{主要工作}
-完成这项工作需要如下步骤
-\begin{block}{具体步骤}
-\begin{itemize}
-	\item<0->  对SMS数据进行迄今为止最大的挖掘分析
-	\item<0->  评估良性短消息服务的安全态势
-	\item<0->  刻画通过SMS网关进行的恶意行为
-\end{itemize}
-\end{block}
-\end{frame}
-
- \begin{frame}
-\frametitle{OTT服务}
-\begin{figure}[!t]
-	\centering
-	\includegraphics[width=2in]{figures/sustech.pdf}
-	\caption{OTT服务}
-	\label{figure3_OTT}
-\end{figure}
-\begin{center}
-	OTT服务支持在数据网络上提供短信和语音等第三方服务。\\
-	OTT可以使用云服务来存储和同步SMS到用户的其他设备。
-\end{center}
-
-\end{frame}
-
-
-
-\section{词表示模型}  %自我介绍
-
-\begin{frame}{词表示}
-在NLP任务中，可以利用各种词表示模型，将“词”这种符号信息表示成数学上的向量形式。。将语义信息表示成稠密、低维的实值向量，这样就可以用计算向量之间相似度的方法（如余弦相似度），来计算语义的相似度。词的向量表示可以作为各种深度学习模型的输入来使用
-\begin{block}{词表示模型分类}
-	直接表示模型
-	\begin{itemize}
-		\item<0-> One-Hot Representation
-	\end{itemize}
-	
-	分布式表示模型
-	\begin{itemize}
-		\item<0-> 计数模型（基于共现矩阵）
-		\item<0-> 预测模型（基于神经网络）
-	\end{itemize}
-\end{block}
-\end{frame}
-
-
-\section{直接表示模型}
-\begin{frame}{One-Hot Representation}
-最简单直接的词表示是One-Hot Representation。考虑一个词表$ \mathbb V $，里面的每一个词$ w_i $都有一个编号$ i\in \{1,...,n\} $,那么词$ w_i $的one-hot表示就是一个维度为n的向量，其中第$ i $个元素值非零，其余元素全为0。例如：
-\[  w_2=[0,1,0,...,0]^\top  \]
-\[  w_3=[0,0,1,...,0]^\top  \]
-\begin{block}{缺点}
-	\begin{itemize}
-		\item<0-> 彼此正交，不能反应词间的语义关系
-		\item<0-> 稀疏表示，维度很高，和词典大小成正比
-	\end{itemize}
-\end{block}
-\begin{center}
-	\textcolor{mymauve}{仅仅是为了区分词，不包含语义信息，语义信息应该从上下文中挖掘}
-\end{center}
-\end{frame}
-
-
-\section{研究方法与数据集特征}
-\begin{frame}{研究方法与数据集特征}
-\begin{columns}[c] % align columns
-	\begin{column}<0->{.5\textwidth}
-		\vspace*{1cm}
-		\begin{itemize}
-			\item 使用Scrapy框架爬取公共网关
-		\end{itemize}
-	
-		\begin{itemize}
-			\item 收集8个公共短信网关在14个月的数据
-		\end{itemize}
-	
-		\begin{itemize}
-			\item 共抓取386,327条数据
-		\end{itemize}
-    \end{column}%
-\hfill%	
-	\begin{column}<0->{.40\textwidth}
-		\begin{table}
-			\caption{公共网关抓取的信息数}
-			\footnotesize
-			\rowcolors{1}{mygray}{white}
-			\begin{tabular}{|c|c|}
-				\hline
-				\textbf{Site}           & \textbf{Messages}\\
-				\hline
-				receivesmsonline.net    &81313\\
-				\hline
-				receive-sms-online.info &69389\\
-				\hline
-				receive-sms-now.com     &63797\\
-				\hline
-				hs3x.com               &55499\\
-				\hline
-				receivesmsonline.com    &44640\\
-				\hline
-				receivefreesms.com      &37485\\
-				\hline
-				receive-sms-online.com  &27094\\
-				\hline
-				e-receivesms.com       &7107\\
-				\hline
-			\end{tabular}
-		\end{table}
-    \end{column}%
-\end{columns}
-\end{frame}
 
 \begin{frame}
-\frametitle{消息聚类分析}
-\begin{block}{\textbf{基本思路}}
-	\begin{itemize}
-		\item<0-> 使用编辑距离矩阵将类似的消息归于一张连通图中。
-		\item<0-> 使用固定值替换感兴趣的消息，如代码、email地址。
-		\item<0-> 查找归一化距离小于阈值的消息，并确定聚类边界。
-	\end{itemize}
-\end{block}
-
-\begin{block}{\textbf{实现步骤}}
-	\begin{enumerate}
-		\item<0-> 加载所有消息。
-		\item<0-> 用固定的字符串替换数字、电子邮件和URL以预处理消息。
-		\item<0-> 将预处理后的信息按字母排序。
-		\item<0-> 通过使用编辑距离阈值(0.9)来确定聚类边界。
-		\item<0-> 手动标记各个聚类，以确定服务提供者、消息类别等。
-	\end{enumerate}
-\end{block}
+  \titlepage
 \end{frame}
 
-\section{算法和代码}
-\subsection{算法}
-\begin{frame}{算法}
-\begin{algorithm}[H]
-	\caption{HOSVD}
-	\small 
-	\KwIn{HOSVD($\mathcal{X},R_{1},R_{2}.....R_{N}$) }
-	\KwOut{ $\mathcal{G},A_{(1)},A_{(2)}......A_{(N)} $ }
-	
-	\For{$k=1$ to $N$ }
-	{
-		$A_{(n)}\leftarrow R_{n}$left singular matrix of $X_{(n)}$
-	}
-	$\mathcal{G}=\leftarrow \mathcal{X} \times A_{(1)}^{T} \times A_{(2)}^{T}...... \times A_{(N)}^{T}$\\
-	\Return $\mathcal{G},A_{(1)},A_{(2)}......A_{(N)} $
-\end{algorithm}
+\begin{frame}{目录}
+  \tableofcontents
 \end{frame}
 
-\subsection{代码}
-\begin{frame}[fragile]{代码}
-HOSVD在Python的代码实现和分析：
-\lstinputlisting[lastline=11,
-language=Python,
-frame=single,
-caption=First ten lines of some Python code,
-label=python]
-{HOSVD.py}
-\end{frame}
+\section{题意与建模}
 
-
-\section{Future Work}
-\begin{frame}{Future Work}  %将来可做的方向
+\begin{frame}{1. 背景与核心任务（1 min）}
+\textbf{背景：}AI计算平台要实时响应同学的算力需求。\\[4pt]
+\textbf{你要做：}实现交互式调度器，在线决定哪些任务运行、在哪个进程运行、是否抢占。\\[6pt]
+\textbf{系统资源：}
 \begin{itemize}
-\item<0-> Get more people to try this
-\item<0-> Benchmark the entire system in the wild
-\item<0-> Profit!
+  \item 最多并发进程数 $n$
+  \item 总 GPU 数 $k$
+  \item 总共享内存 $m$
+\end{itemize}
+\imgplaceholder{“数据中心机架 + 调度大屏”示意图}
+\end{frame}
+
+\begin{frame}{2. 任务模型与目标函数（2 min）}
+每个任务 $i$ 已知：
+\begin{itemize}
+  \item GPU需求 $k_i$，内存需求 $m_i$
+  \item 相邻 checkpoint 间隔 $t_i$（整小时）
+  \item 重要性 $W_i$
+\end{itemize}
+未知：checkpoint 总数 $c_i$（直到任务结束才知道）。\\[6pt]
+优化目标：
+\[
+\min \sum_i W_i \cdot \frac{T_i}{t_i\cdot c_i}
+\]
+其中 $T_i$ 是从到达到完成的总时长。\\
+\textbf{直觉：}高权重任务、短任务段应尽量少等。
+\end{frame}
+
+\begin{frame}{3. checkpoint 与抢占的坑点（2 min）}
+\begin{itemize}
+  \item 任务开始时刻算第一个 checkpoint。
+  \item 结束时刻\textbf{不算}checkpoint，总时长严格是 $c_i\cdot t_i$。
+  \item 抢占耗时记为 0，但会丢失“上个 checkpoint 之后”的全部进度。
+\end{itemize}
+\vspace{4pt}
+所以调度要权衡：
+\begin{itemize}
+  \item 继续跑当前任务（避免已投入进度损失）
+  \item 抢占给更紧急任务（减少高价值任务等待）
+\end{itemize}
+\imgplaceholder{“checkpoint 进度条 + 抢占回退”时间轴图}
+\end{frame}
+
+\begin{frame}{4. 交互接口与四类事件（2 min）}
+\textbf{接口：}
+\begin{itemize}
+  \item \texttt{Init(process\_cnt, gpu\_cnt, memory\_sum)}
+  \item \texttt{Event(now\_time, event)}
+  \item 可调用 \texttt{Schedule(task\_id, process\_id)} / \texttt{Appoint(appoint\_time)}
+\end{itemize}
+\textbf{事件类型：}
+\begin{enumerate}
+  \item 到达 checkpoint
+  \item 任务结束
+  \item 新任务到达
+  \item 预约调度事件触发
+\end{enumerate}
+\textbf{关键：}这是事件驱动在线算法，不能看到未来任务。
+\end{frame}
+
+\section{题解代码思路}
+
+\begin{frame}{5. 总体策略：打分 + 选集 + 列表调度（1.5 min）}
+题解核心分三步：
+\begin{enumerate}
+  \item 给每个未完成任务计算优先级分数 \texttt{sc}
+  \item 在进程数/GPU/内存约束下贪心选出集合 $S$
+  \item 对 $S$ 做 list schedule：尽量保留已有运行，必要时有代价地抢占
+\end{enumerate}
+\vspace{4pt}
+\textbf{优点：}
+\begin{itemize}
+  \item 计算量可控（适配 1e4 任务）
+  \item 在线可增量更新
+  \item 对多资源约束有直接适配
 \end{itemize}
 \end{frame}
 
-\begin{frame}{Thank you}
-\begin{center}
-\begin{minipage}{1\textwidth}
-	\setbeamercolor{mybox}{fg=white, bg=black!50!blue}
- \begin{beamercolorbox}[wd=0.70\textwidth, rounded=true, shadow=true]{mybox}
-\LARGE \centering Thank you for listening!  %结束语
-\end{beamercolorbox}
- \end{minipage}
-\end{center}
+\begin{frame}{6. 数据结构设计（1.5 min）}
+\texttt{Task} 维护：
+\begin{itemize}
+  \item 静态属性：$k,m,t,W$
+  \item 动态状态：WAITING/RUNNING/FINISHED
+  \item \texttt{checkpoints\_passed}、等待时间累计、绑定进程
+\end{itemize}
+\texttt{Process} 维护：当前任务 ID 与当前段起点时间。\\[4pt]
+全局状态：\texttt{usedK/usedM}、\texttt{tasks} 哈希表、\texttt{mean\_segments}（未知段数先验）。
+\imgplaceholder{“任务池 + 进程池 + 资源计数器”结构图}
 \end{frame}
 
-\begin{frame}{Q\&A}
-\begin{center}
-	\begin{minipage}{1\textwidth}
-		\setbeamercolor{mybox}{fg=white, bg=black!50!blue}
-		\begin{beamercolorbox}[wd=0.70\textwidth, rounded=true, shadow=true]{mybox}
-			\LARGE \centering  Questions?  %请求提问
-		\end{beamercolorbox}
-	\end{minipage}
-\end{center}
+\begin{frame}{7. 任务打分公式（2 min）}
+候选值（代码中的 \texttt{Candidate}）：
+\[
+\hat c_i=\max(1,\ \text{passed}+\text{mean\_segments}),\quad
+\phi_i=\frac{W_i}{\hat c_i\,t_i}
+\]
+\[
+\text{sc}_i=\frac{\phi_i}{d_i\cdot t_i^{\theta}},\quad
+d_i=\alpha\frac{k_i}{K}+(1-\alpha)\frac{m_i}{M}
+\]
+其中 $\alpha$ 按当前资源紧缺度自适应（偏 GPU 或偏内存）。\\[4pt]
+\textbf{解释：}
+\begin{itemize}
+  \item 权重高 + 估计总段数少 + 单段短 => 更优先
+  \item 占资源更“重”的任务会被折价
+\end{itemize}
 \end{frame}
 
-% -----------------------------------------------------------------------------
+\begin{frame}[fragile]{8. 选集合 S：近似“多约束背包”贪心（1.5 min）}
+代码先对全部任务计算分数，取前若干高分候选（\texttt{nth\_element}），再按分数降序装入资源桶：
+\begin{lstlisting}
+int nleft=n, kleft=K, mleft=M;
+for (candidate c in sorted_candidates) {
+  if (kneed<=kleft && mneed<=mleft && nleft>0) {
+      choose(c);
+      nleft--; kleft-=kneed; mleft-=mneed;
+  }
+}
+\end{lstlisting}
+\textbf{复杂度优势：}避免每次全量排序，适合大数据点实时调度。
+\end{frame}
+
+\begin{frame}{9. 抢占判定：收益是否覆盖损失（2 min）}
+若任务 $I$ 想抢占进程上任务 $J$，代码比较：
+\[
+\phi_I\cdot r_J > \lambda_{preempt}\cdot \phi_J\cdot s_J
+\]
+\begin{itemize}
+  \item $s_J$：从上次 checkpoint 跑到现在的时长（被抢占会丢）
+  \item $r_J$：离下一个 checkpoint 还差多久
+\end{itemize}
+并计算驱逐代价：
+\[
+\text{cost}=\lambda_1\phi_J s_J+\lambda_2\phi_J r_J
+\]
+在可抢占进程中选代价最小者。
+\imgplaceholder{“抢占收益 vs 回退损失”对比图}
+\end{frame}
+
+\begin{frame}{10. 事件处理细节（1.5 min）}
+\texttt{Event()} 中四类更新：
+\begin{itemize}
+  \item type1 checkpoint：\texttt{checkpoints\_passed++}，刷新段起点
+  \item type2 finish：释放资源，更新 \texttt{mean\_segments}，删任务
+  \item type3 arrival：加入任务池并标记等待
+  \item type4 appoint：仅触发一次调度轮
+\end{itemize}
+然后按条件触发重调度（前期事件密集全调度，后期抽样调度）。
+\end{frame}
+
+\section{正确性、复杂度与工程}
+
+\begin{frame}{11. 合法性保证（1.5 min）}
+本题 0 分风险在“非法调用”。题解通过多层检查规避：
+\begin{itemize}
+  \item \texttt{task\_process\_check}: 校验资源是否可满足（含抢占后）
+  \item 仅对 WAITING 任务做启动，不会一任务多进程并跑
+  \item \texttt{process\_id} 范围由进程数组控制
+  \item \texttt{Appoint} 只会传 $\ge now\_time$ 的时刻
+\end{itemize}
+\textbf{结论：}调度动作都在交互器断言允许域内。
+\end{frame}
+
+\begin{frame}{12. 时限把控（2 min）}
+数据规模：任务最多约 1e4，进程最多 1e3，时限 8s。\\[4pt]
+题解的时限策略：
+\begin{itemize}
+  \item 哈希表 + 向量，避免昂贵结构
+  \item \texttt{nth\_element} 降低排序成本
+  \item 事件后“并非每次全量重调度”：
+  \begin{itemize}
+    \item 前 1000 事件都调
+    \item 之后每 4 次调一次
+    \item 任务到达/结束事件强制调
+  \end{itemize}
+\end{itemize}
+\textbf{工程直觉：}在效果和开销之间做自适应折中。
+\end{frame}
+
+\begin{frame}{13. 样例推演（1.5 min）}
+样例：$N=2, K=4, M=16$，任务 1 与任务 2 资源冲突，不能并跑。\\[4pt]
+调度：
+\begin{itemize}
+  \item time 0: \texttt{Schedule(1,0)}
+  \item time 6: \texttt{Schedule(2,0)}
+\end{itemize}
+目标值：\texttt{19.1667}。\\
+解释：先完整跑完 task1 再跑 task2，在该数据下优于中途抢占。
+\imgplaceholder{“两任务甘特图：串行运行”}
+\end{frame}
+
+\begin{frame}{14. 参数与可调方向（1.5 min）}
+代码中的关键超参数：
+\begin{itemize}
+  \item $\theta$（短段偏好）
+  \item $\lambda_{preempt}$（抢占激进程度）
+  \item $\lambda_{evict,1},\lambda_{evict,2}$（驱逐损失）
+  \item \texttt{mean\_segments} 的先验和 EMA 更新系数
+\end{itemize}
+调参建议：
+\begin{itemize}
+  \item 真实日志数据与理想数据可分组调参
+  \item 关注抢占频率、平均回退时长、尾部任务等待
+\end{itemize}
+\end{frame}
+
+\section{总结}
+
+\begin{frame}{15. 总结与答疑（1 min）}
+\textbf{一句话：}这是一个“未知总长度 + 多资源约束 + 可抢占损失”的在线调度问题。\\[6pt]
+题解亮点：
+\begin{itemize}
+  \item 用估计段数把未知 $c_i$ 转成可决策分数
+  \item 用资源紧缺度自适应平衡 GPU/内存瓶颈
+  \item 用收益-代价模型控制抢占
+\end{itemize}
+\vspace{6pt}
+\centering
+\Large Thanks \,\&\, Q\&A
+\end{frame}
+
 \end{document}
-%文档结束
