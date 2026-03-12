@@ -15,11 +15,11 @@
 }
 
 \newcommand{\imgplaceholder}[1]{%
-  \fbox{\parbox[c][3.2cm][c]{0.92\linewidth}{\centering\small 占位图：#1}}
+  \fbox{\parbox[c][3.0cm][c]{0.92\linewidth}{\centering\small 占位图：#1}}
 }
 
 \title{AI算力中心任务调度问题题解}
-\subtitle{在线调度 + 资源约束 + 可抢占 checkpoint 模型}
+\subtitle{在线优化建模 + 启发式最优化策略}
 \author{讲题人：你}
 \institute{中关村文理学院（模拟场景）}
 \date{20分钟讲解版}
@@ -41,230 +41,234 @@
 \textbf{系统总资源：}
 \begin{itemize}
   \item 最多同时运行 $n$ 个任务（进程位）
-  \item 总 GPU 数 $K$（题面中同质显卡）
+  \item 总 GPU 数 $K$（同质显卡）
   \item 总共享内存 $M$ GB
 \end{itemize}
-\textbf{每个任务公开信息：}
+\textbf{任务公开信息：}
 \begin{itemize}
+  \item 需求 $(k_i,m_i)$、段长 $t_i$、重要性 $W_i$
   \item 任务编号递增，进程编号 $0\sim n-1$
-  \item 需求 $(k_i,m_i)$，每段时长 $t_i$，重要性 $W_i$
 \end{itemize}
-\imgplaceholder{“任务到达队列 + GPU/内存资源池”系统框图}
+\imgplaceholder{“任务流 + 多资源池 + 进程槽位”框图}
 \end{frame}
 
 \begin{frame}{2. 任务模型与目标函数（2 min）}
 任务 $i$ 的 checkpoint 机制：
 \begin{itemize}
-  \item 任务开始时刻就算第一个 checkpoint
+  \item 开始时刻算第一个 checkpoint
   \item 相邻 checkpoint 间隔恒为 $t_i$（整小时）
-  \item 总 checkpoint 数 $c_i$ \textbf{开始未知}，仅在任务结束时获知
-  \item 因题目简化，总时长严格为 $c_i\cdot t_i$
+  \item checkpoint 总数 $c_i$ \textbf{开始未知}，仅在任务结束时获知
+  \item 题目简化下总时长严格为 $c_i t_i$
 \end{itemize}
-调度目标：
+目标函数：
 \[
-\min \sum_i W_i \cdot \frac{T_i}{t_i\cdot c_i}
+\min \sum_i \frac{W_i T_i}{c_i t_i}
 \]
-其中 $T_i$ 是任务从\textbf{发出到完成}的总周转时间。\\
-\textbf{直觉：}高 $W_i$ 的任务不能长期等待；同等等待下，短任务段更“敏感”。
+其中 $T_i$ 是从任务发出到最终完成的总周转时间。
 \end{frame}
 
-\begin{frame}{3. checkpoint 与抢占的坑点（2 min）}
+\begin{frame}{3. checkpoint 与抢占语义（1.5 min）}
 \begin{itemize}
-  \item 抢占本身不耗时，但会回滚到“上一个 checkpoint”。
-  \item 损失的是“上个 checkpoint 到当前时刻”的整段进度。
-  \item 所以越接近下个 checkpoint，被抢占越不划算。
-  \item 抢占是允许的，且是应对在线未知信息的关键工具。
+  \item 允许抢占，抢占本身不消耗时间。
+  \item 但若不在 checkpoint 边界抢占，会丢失“上个 checkpoint 后”全部进度。
+  \item 所以段内抢占的真实代价与“已跑段长”正相关。
 \end{itemize}
 \vspace{4pt}
-所以调度要权衡：
+调度核心矛盾：
 \begin{itemize}
-  \item \textbf{保留已投入进度}：避免无谓回滚
-  \item \textbf{降低高价值等待}：必要时果断抢占
+  \item 继续跑旧任务：保护已投入进度
+  \item 抢占上新任务：降低高价值任务等待损失
 \end{itemize}
-\imgplaceholder{“checkpoint 进度条 + 抢占回退”时间轴图}
+\imgplaceholder{“段内进度回滚 + checkpoint 无损切换”时间轴}
 \end{frame}
 
-\begin{frame}{4. 交互机制、合法性与评分（2.5 min）}
+\begin{frame}{4. 交互机制、合法性与评分（2 min）}
 \textbf{接口：}
-\begin{itemize}
-  \item \texttt{Init(process\_cnt, gpu\_cnt, memory\_sum)}
-  \item \texttt{Event(now\_time, event)}
-  \item 可调用 \texttt{Schedule(task\_id, process\_id)} / \texttt{Appoint(appoint\_time)}
-\end{itemize}
-\textbf{事件类型（event\_type=1..4）：}
-\begin{enumerate}
-  \item 任务运行到 checkpoint
-  \item 任务完全结束（此时才知道该任务真实 $c_i$）
-  \item 新任务到达
-  \item 你预约的调度事件触发
-\end{enumerate}
+\texttt{Init(...)}、\texttt{Event(now,event)}，并可调用 \texttt{Schedule} / \texttt{Appoint}。\\[2pt]
+\textbf{事件：}checkpoint / 结束 / 新任务 / 预约事件。\\[2pt]
 \textbf{合法性红线：}
 \begin{itemize}
-  \item \texttt{Schedule} 时任务不能已在其他进程运行，且资源需可满足
-  \item \texttt{Appoint(appoint\_time)} 必须满足 $appoint\_time\ge now\_time$
+  \item \texttt{Schedule} 时任务不能已在别处运行，且资源必须可满足
+  \item \texttt{Appoint(appoint\_time)} 要满足 $appoint\_time\ge now$
 \end{itemize}
-\textbf{评分：}$score=15\cdot\min(0.95\cdot std/your,1)$，20 个点，总时限 8s（C++）。
-\end{frame}
-
-\section{题解代码思路}
-
-\begin{frame}{5. 总体策略：打分 + 选集 + 列表调度（1.5 min）}
-题解核心分三步：
-\begin{enumerate}
-  \item 给每个未完成任务计算优先级分数 \texttt{sc}
-  \item 在进程数/GPU/内存约束下贪心选出集合 $S$
-  \item 对 $S$ 做 list schedule：尽量保留已有运行，必要时有代价地抢占
-\end{enumerate}
-\vspace{4pt}
-\textbf{优点：}
-\begin{itemize}
-  \item 计算量可控（适配 1e4 任务）
-  \item 在线可增量更新
-  \item 对多资源约束有直接适配
-\end{itemize}
-\end{frame}
-
-\begin{frame}{6. 数据结构设计（1.5 min）}
-\texttt{Task} 维护：
-\begin{itemize}
-  \item 静态属性：$k,m,t,W$
-  \item 动态状态：WAITING/RUNNING/FINISHED
-  \item \texttt{checkpoints\_passed}、等待时间累计、绑定进程
-\end{itemize}
-\texttt{Process} 维护：当前任务 ID 与当前段起点时间。\\[4pt]
-全局状态：\texttt{usedK/usedM}、\texttt{tasks} 哈希表、\texttt{mean\_segments}（未知段数先验）。
-\imgplaceholder{“任务池 + 进程池 + 资源计数器”结构图}
-\end{frame}
-
-\begin{frame}{7. 任务打分公式（2 min）}
-候选值（代码中的 \texttt{Candidate}）：
+\textbf{评分：}
 \[
-\hat c_i=\max(1,\ \text{passed}+\text{mean\_segments}),\quad
-\phi_i=\frac{W_i}{\hat c_i\,t_i}
+score=15\cdot\min\!\left(\frac{0.95\cdot std\_perf}{your\_perf},1\right)
 \]
+每点时限 8s（C++），在线算法必须兼顾效果与开销。
+\end{frame}
+
+\section{题解推导与策略设计}
+
+\begin{frame}{5. 从目标函数推导“单位等待边际代价”（1.5 min）}
+先看单任务代价项：
 \[
-\text{sc}_i=\frac{\phi_i}{d_i\cdot t_i^{\theta}},\quad
+F_i=\frac{W_i T_i}{c_i t_i}
+\]
+若任务 $i$ 额外等待 $\Delta t=1$ 小时，则近似增量：
+\[
+\Delta F_i \approx \frac{W_i}{c_i t_i}
+\]
+这就是任务 $i$ 当前“再等 1 小时”的边际损失。\\[4pt]
+因此在线调度直觉：
+\begin{block}{自然优先级原则}
+优先运行边际损失 $\frac{W_i}{c_i t_i}$ 更大的任务。
+\end{block}
+\end{frame}
+
+\begin{frame}{6. 关键难点：$c_i$ 未知，改成在线估计（1.5 min）}
+由于真实 $c_i$ 在完成前不可见，定义估计：
+\[
+\hat c_i=\text{checkpoints\_passed}_i+\text{mean\_segments}
+\]
+得到可计算的价值密度：
+\[
+\phi_i=\frac{W_i}{\hat c_i t_i}
+\]
+\begin{itemize}
+  \item $\phi_i$ 越大，说明“让它再等 1 小时”预计越亏
+  \item 新任务用全局先验 \texttt{mean\_segments}
+  \item 已跑过多段却未完成的任务，$\hat c_i$ 会自然变大
+\end{itemize}
+\end{frame}
+
+\begin{frame}{7. 全局先验如何更新：指数平滑（1.5 min）}
+任务完成时可观测到其总段数近似：
+\[
+c_i\approx \text{checkpoints\_passed}_i+1
+\]
+用 EMA 更新全局先验：
+\[
+\text{mean\_segments}\leftarrow(1-\alpha)\cdot\text{mean\_segments}
++\alpha\cdot(\text{checkpoints\_passed}_i+1)
+\]
+\begin{itemize}
+  \item $\alpha$ 小：更平滑、更稳
+  \item $\alpha$ 大：更快跟踪分布漂移
+\end{itemize}
+\textbf{对应代码参数：} \texttt{MEAN\_SEGMENTS\_PRIOR} + \texttt{MEAN\_SEGMENTS\_ALPHA}。
+\end{frame}
+
+\begin{frame}{8. 当前时刻的理想决策：约束最优化（2 min）}
+选运行集合 $S$，满足：
+\[
+|S|\le n,\quad \sum_{i\in S}k_i\le K,\quad \sum_{i\in S}m_i\le M
+\]
+当前未运行任务每小时损失约为 $\phi_i$，故瞬时增长率：
+\[
+\sum_{i\notin S}\phi_i=\sum_i\phi_i-\sum_{i\in S}\phi_i
+\]
+前项为常数，等价为：
+\[
+\max_{S}\ \sum_{i\in S}\phi_i
+\]
+\textbf{结论：}这是一个三重约束（数量/GPU/内存）的在线装箱-背包问题。
+\end{frame}
+
+\begin{frame}{9. 启发式贪心：价值与资源体积的比值（2 min）}
+精确求最优过慢，采用可在线重算的贪心评分。\\[-2pt]
+定义资源体积：
+\[
 d_i=\alpha\frac{k_i}{K}+(1-\alpha)\frac{m_i}{M}
 \]
-其中 $\alpha$ 按当前资源紧缺度自适应（偏 GPU 或偏内存）。\\[4pt]
-\textbf{解释：}
-\begin{itemize}
-  \item 权重高 + 估计总段数少 + 单段短 => 更优先
-  \item 占资源更“重”的任务会被折价
-\end{itemize}
-\end{frame}
-
-\begin{frame}[fragile]{8. 选集合 S：近似“多约束背包”贪心（1.5 min）}
-代码先对全部任务计算分数，取前若干高分候选（\texttt{nth\_element}），再按分数降序装入资源桶：
-\begin{lstlisting}
-int nleft=n, kleft=K, mleft=M;
-for (candidate c in sorted_candidates) {
-  if (kneed<=kleft && mneed<=mleft && nleft>0) {
-      choose(c);
-      nleft--; kleft-=kneed; mleft-=mneed;
-  }
-}
-\end{lstlisting}
-\textbf{复杂度优势：}避免每次全量排序，适合大数据点实时调度。
-\end{frame}
-
-\begin{frame}{9. 抢占判定：收益是否覆盖损失（2 min）}
-若任务 $I$ 想抢占进程上任务 $J$，代码比较：
+定义排序分数：
 \[
-\phi_I\cdot r_J > \lambda_{preempt}\cdot \phi_J\cdot s_J
+score_i=\frac{\phi_i}{d_i\cdot t_i^{\theta}}
 \]
 \begin{itemize}
-  \item $s_J$：从上次 checkpoint 跑到现在的时长（被抢占会丢）
-  \item $r_J$：离下一个 checkpoint 还差多久
+  \item 分子 $\phi_i$：等待边际损失
+  \item 分母 $d_i$：资源占用强度
+  \item $t_i^{\theta}$：轻微长段惩罚，提高调度灵活性
 \end{itemize}
-并计算驱逐代价：
+按 $score$ 降序尝试装入，不违反 $(n,K,M)$ 就选入。
+\end{frame}
+
+\begin{frame}{10. 为什么要加 $t_i^{\theta}$ 惩罚（1 min）}
+若 $t_i$ 很大：
+\begin{itemize}
+  \item 下一次无损切换点（checkpoint）来得更慢
+  \item 调度器更容易被“长段任务”卡住
+\end{itemize}
+因此加轻惩罚（如 $\theta=0.2$）：
 \[
-\text{cost}=\lambda_1\phi_J s_J+\lambda_2\phi_J r_J
+score_i\propto \frac{1}{t_i^{\theta}}
 \]
-在可抢占进程中选代价最小者。
-\imgplaceholder{“抢占收益 vs 回退损失”对比图}
+不是追求公平，而是控制段内抢占风险、提升全局可调度性。
 \end{frame}
 
-\begin{frame}{10. 事件处理细节（1.5 min）}
-\texttt{Event()} 中四类更新：
+\begin{frame}{11. 从理想集合 $S$ 到真实进程映射（1.5 min）}
+\textbf{Step 1：}保留“当前在跑且仍属于 $S$”的任务（不动最省）。\\
+\textbf{Step 2：}构造 \texttt{need\_start}：属于 $S$ 但未运行的任务。\\
+\textbf{Step 3：}逐个安置 \texttt{need\_start}：
 \begin{itemize}
-  \item type1 checkpoint：\texttt{checkpoints\_passed++}，刷新段起点
-  \item type2 finish：释放资源，更新 \texttt{mean\_segments}，删任务
-  \item type3 arrival：加入任务池并标记等待
-  \item type4 appoint：仅触发一次调度轮
+  \item 优先放空闲进程（无抢占成本）
+  \item 放不下再考虑抢占不在 $S$ 中的运行任务
 \end{itemize}
-然后按条件触发重调度（前期事件密集全调度，后期抽样调度）。
+\textbf{工程意义：}把“理论最优集合”变成“最小扰动的可执行调度”。
 \end{frame}
 
-\section{正确性、复杂度与工程}
-
-\begin{frame}{11. 合法性保证（1.5 min）}
-本题 0 分风险在“非法调用”。题解通过多层检查规避：
-\begin{itemize}
-  \item \texttt{task\_process\_check}: 校验资源是否可满足（含抢占后）
-  \item 仅对 WAITING 任务做启动，不会一任务多进程并跑
-  \item \texttt{process\_id} 范围由进程数组控制
-  \item \texttt{Appoint} 只会传 $\ge now\_time$ 的时刻
-\end{itemize}
-\textbf{结论：}调度动作都在交互器断言允许域内。
+\begin{frame}{12. 段内抢占阈值：收益必须覆盖损失（2 min）}
+新任务 $i$ 想抢占运行任务 $j$，记：
+\[
+s_j=\text{本段已运行时长},\quad r_j=t_j-s_j
+\]
+若立即抢占：损失约 $\phi_j s_j$。\\
+若等到下个 checkpoint 再切：新任务多等 $r_j$，损失约 $\phi_i r_j$。\\[2pt]
+仅当
+\[
+\phi_i r_j > \lambda\,\phi_j s_j,\quad \lambda\ge1
+\]
+才允许段内抢占。\\
+\textbf{解释：}新任务足够“贵”且旧任务已跑段损失可接受，才值得打断。
 \end{frame}
 
-\begin{frame}{12. 时限把控（2 min）}
-数据规模：任务最多约 1e4，进程最多 1e3，时限 8s。\\[4pt]
-题解的时限策略：
+\begin{frame}{13. 多候选可抢占时：选最小驱逐代价（1.5 min）}
+对候选被驱逐任务 $j$ 定义：
+\[
+\text{evict\_cost}(j)=\lambda_1\phi_j s_j+\lambda_2\phi_j r_j
+\]
 \begin{itemize}
-  \item 哈希表 + 向量，避免昂贵结构
-  \item \texttt{nth\_element} 降低排序成本
-  \item 事件后“并非每次全量重调度”：
-  \begin{itemize}
-    \item 前 1000 事件都调
-    \item 之后每 4 次调一次
-    \item 任务到达/结束事件强制调
-  \end{itemize}
+  \item 第一项：已跑段回滚损失
+  \item 第二项：临近 checkpoint 的保护项
 \end{itemize}
-\textbf{工程直觉：}在效果和开销之间做自适应折中。
+在“资源可行 + 通过抢占阈值”的候选进程中，取 \texttt{evict\_cost} 最小者。
+\imgplaceholder{“多个候选进程的驱逐代价柱状对比图”}
 \end{frame}
 
-\begin{frame}{13. 样例推演（1.5 min）}
-样例：$N=2, K=4, M=16$，任务 1 与任务 2 资源冲突，不能并跑。\\[4pt]
-调度：
-\begin{itemize}
-  \item time 0: \texttt{Schedule(1,0)}
-  \item time 6: \texttt{Schedule(2,0)}
-\end{itemize}
-目标值：\texttt{19.1667}。\\
-解释：先完整跑完 task1 再跑 task2，在该数据下优于中途抢占。
-\imgplaceholder{“两任务甘特图：串行运行”}
+\begin{frame}{14. 事件驱动状态维护（1.5 min）}
+\textbf{type=3 新任务：}创建 WAITING，记录 \texttt{waiting\_since=now}。\\
+\textbf{type=1 checkpoint：}\texttt{checkpoints\_passed++}，刷新段起点。\\
+\textbf{type=2 完成：}释放资源、更新 \texttt{mean\_segments}、删除任务。\\
+\textbf{type=4 预约：}仅触发一次重调度（本策略不强依赖）。\\[4pt]
+\textbf{等待时间维护：}
+\[
+T_i=\begin{cases}
+waiting\_accum,& RUNNING\\
+waiting\_accum+(now-waiting\_since),& WAITING
+\end{cases}
+\]
+每次状态切换可 $O(1)$ 更新。
 \end{frame}
 
-\begin{frame}{14. 参数与可调方向（1.5 min）}
-代码中的关键超参数：
+\begin{frame}{15. 复杂度与时限把控（1.5 min）}
+设当前未完成任务数为 $N$：
 \begin{itemize}
-  \item $\theta$（短段偏好）
-  \item $\lambda_{preempt}$（抢占激进程度）
-  \item $\lambda_{evict,1},\lambda_{evict,2}$（驱逐损失）
-  \item \texttt{mean\_segments} 的先验和 EMA 更新系数
+  \item 计算评分：$O(N)$
+  \item 选前列候选 + 局部排序：近似 $O(N\log N)$（可用 \texttt{nth\_element} 降常数）
+  \item 贪心装箱：$O(N)$
+  \item 进程映射/候选抢占：与进程数 $n$ 线性相关
 \end{itemize}
-调参建议：
-\begin{itemize}
-  \item 真实日志数据与理想数据可分组调参
-  \item 关注抢占频率、平均回退时长、尾部任务等待
-\end{itemize}
+单次事件主复杂度约 $O(N\log N)$，可覆盖题目 1e4 任务规模。\\
+工程上还可采用“并非每次事件都全量重算”的降频策略。
 \end{frame}
 
-\section{总结}
-
-\begin{frame}{15. 总结与答疑（1 min）}
-\textbf{一句话：}这是一个“未知总长度 + 多资源约束 + 可抢占损失”的在线调度问题。\\[6pt]
-题解亮点：
-\begin{itemize}
-  \item 用估计段数把未知 $c_i$ 转成可决策分数
-  \item 用资源紧缺度自适应平衡 GPU/内存瓶颈
-  \item 用收益-代价模型控制抢占
-\end{itemize}
-\vspace{6pt}
+\begin{frame}{16. 总结：最终策略的一句话（1 min）}
+\begin{block}{核心结论}
+每次事件时重估“谁再等 1 小时最亏”（$\phi_i$），在 $(n,K,M)$ 约束下选最值得跑的集合；已在跑且仍应跑的尽量不动；仅当新任务收益显著大于丢段代价时才段内抢占，并选择最小驱逐代价目标。
+\end{block}
+\vspace{4pt}
 \centering
-\Large Thanks \,\&\, Q\&A
+\Large Thanks \& Q\&A
 \end{frame}
 
 \end{document}
