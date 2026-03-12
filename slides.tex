@@ -163,26 +163,13 @@ d_i=\alpha\frac{k_i}{K}+(1-\alpha)\frac{m_i}{M}
 \]
 定义排序分数：
 \[
-score_i=\frac{\phi_i}{d_i\cdot t_i^{\theta}}
+score_i=\frac{\phi_i}{d_i}
 \]
 \begin{itemize}
   \item 分子 $\phi_i$：等待边际损失
   \item 分母 $d_i$：资源占用强度
-  \item $t_i^{\theta}$：轻微长段惩罚，提高调度灵活性
+  % \item $t_i^{\theta}$：轻微长段惩罚，提高调度灵活性
 \end{itemize}
-\end{frame}
-
-\begin{frame}{长段惩罚项的意义}
-若 $t_i$ 很大：
-\begin{itemize}
-  \item 下一次无损切换点（checkpoint）来得更慢
-  \item 调度器更容易被“长段任务”卡住
-\end{itemize}
-因此加轻惩罚（如 $\theta=0.2$）：
-\[
-score_i\propto \frac{1}{t_i^{\theta}}
-\]
-不是追求公平，而是控制段内抢占风险、提升全局可调度性。
 \end{frame}
 
 \begin{frame}{从理想集合到真实进程映射}
@@ -246,7 +233,7 @@ waiting\_accum+(now-waiting\_since),& WAITING
 单次事件主复杂度约 $O(N\log N)$。
 通常 $N$ 比总任务小一到两个数量级，但尽管如此，如果每次事件都全量重算，时间上也难以接受。
 工程上可采用“并非每次事件都全量重算”的降频策略：例如前1000个事件每次都重新评估装载，此后每5个事件进行一次评估装载。
-由于样例的分布与测试数据，大家可以在本地做充分的测试和调参，找到一个在效率和效果上都较优的平衡点后进行提交。
+由于样例的分布与测试数据相同，大家可以在本地做充分的测试和调参，找到一个在效率和效果上都较优的平衡点后进行提交。
 \end{frame}
 
 \begin{frame}{总结}
