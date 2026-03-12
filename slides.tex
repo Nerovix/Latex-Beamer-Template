@@ -36,64 +36,74 @@
 
 \section{题意与建模}
 
-\begin{frame}{1. 背景与核心任务（1 min）}
-\textbf{背景：}AI计算平台要实时响应同学的算力需求。\\[4pt]
-\textbf{你要做：}实现交互式调度器，在线决定哪些任务运行、在哪个进程运行、是否抢占。\\[6pt]
-\textbf{系统资源：}
+\begin{frame}{1. 背景与建模对象（1.5 min）}
+\textbf{场景：}校内 AI 计算中心给同学提供免费算力，调度程序要在主机上实时响应请求。\\[4pt]
+\textbf{系统总资源：}
 \begin{itemize}
-  \item 最多并发进程数 $n$
-  \item 总 GPU 数 $k$
-  \item 总共享内存 $m$
+  \item 最多同时运行 $n$ 个任务（进程位）
+  \item 总 GPU 数 $K$（题面中同质显卡）
+  \item 总共享内存 $M$ GB
 \end{itemize}
-\imgplaceholder{“数据中心机架 + 调度大屏”示意图}
+\textbf{每个任务公开信息：}
+\begin{itemize}
+  \item 任务编号递增，进程编号 $0\sim n-1$
+  \item 需求 $(k_i,m_i)$，每段时长 $t_i$，重要性 $W_i$
+\end{itemize}
+\imgplaceholder{“任务到达队列 + GPU/内存资源池”系统框图}
 \end{frame}
 
 \begin{frame}{2. 任务模型与目标函数（2 min）}
-每个任务 $i$ 已知：
+任务 $i$ 的 checkpoint 机制：
 \begin{itemize}
-  \item GPU需求 $k_i$，内存需求 $m_i$
-  \item 相邻 checkpoint 间隔 $t_i$（整小时）
-  \item 重要性 $W_i$
+  \item 任务开始时刻就算第一个 checkpoint
+  \item 相邻 checkpoint 间隔恒为 $t_i$（整小时）
+  \item 总 checkpoint 数 $c_i$ \textbf{开始未知}，仅在任务结束时获知
+  \item 因题目简化，总时长严格为 $c_i\cdot t_i$
 \end{itemize}
-未知：checkpoint 总数 $c_i$（直到任务结束才知道）。\\[6pt]
-优化目标：
+调度目标：
 \[
 \min \sum_i W_i \cdot \frac{T_i}{t_i\cdot c_i}
 \]
-其中 $T_i$ 是从到达到完成的总时长。\\
-\textbf{直觉：}高权重任务、短任务段应尽量少等。
+其中 $T_i$ 是任务从\textbf{发出到完成}的总周转时间。\\
+\textbf{直觉：}高 $W_i$ 的任务不能长期等待；同等等待下，短任务段更“敏感”。
 \end{frame}
 
 \begin{frame}{3. checkpoint 与抢占的坑点（2 min）}
 \begin{itemize}
-  \item 任务开始时刻算第一个 checkpoint。
-  \item 结束时刻\textbf{不算}checkpoint，总时长严格是 $c_i\cdot t_i$。
-  \item 抢占耗时记为 0，但会丢失“上个 checkpoint 之后”的全部进度。
+  \item 抢占本身不耗时，但会回滚到“上一个 checkpoint”。
+  \item 损失的是“上个 checkpoint 到当前时刻”的整段进度。
+  \item 所以越接近下个 checkpoint，被抢占越不划算。
+  \item 抢占是允许的，且是应对在线未知信息的关键工具。
 \end{itemize}
 \vspace{4pt}
 所以调度要权衡：
 \begin{itemize}
-  \item 继续跑当前任务（避免已投入进度损失）
-  \item 抢占给更紧急任务（减少高价值任务等待）
+  \item \textbf{保留已投入进度}：避免无谓回滚
+  \item \textbf{降低高价值等待}：必要时果断抢占
 \end{itemize}
 \imgplaceholder{“checkpoint 进度条 + 抢占回退”时间轴图}
 \end{frame}
 
-\begin{frame}{4. 交互接口与四类事件（2 min）}
+\begin{frame}{4. 交互机制、合法性与评分（2.5 min）}
 \textbf{接口：}
 \begin{itemize}
   \item \texttt{Init(process\_cnt, gpu\_cnt, memory\_sum)}
   \item \texttt{Event(now\_time, event)}
   \item 可调用 \texttt{Schedule(task\_id, process\_id)} / \texttt{Appoint(appoint\_time)}
 \end{itemize}
-\textbf{事件类型：}
+\textbf{事件类型（event\_type=1..4）：}
 \begin{enumerate}
-  \item 到达 checkpoint
-  \item 任务结束
+  \item 任务运行到 checkpoint
+  \item 任务完全结束（此时才知道该任务真实 $c_i$）
   \item 新任务到达
-  \item 预约调度事件触发
+  \item 你预约的调度事件触发
 \end{enumerate}
-\textbf{关键：}这是事件驱动在线算法，不能看到未来任务。
+\textbf{合法性红线：}
+\begin{itemize}
+  \item \texttt{Schedule} 时任务不能已在其他进程运行，且资源需可满足
+  \item \texttt{Appoint(appoint\_time)} 必须满足 $appoint\_time\ge now\_time$
+\end{itemize}
+\textbf{评分：}$score=15\cdot\min(0.95\cdot std/your,1)$，20 个点，总时限 8s（C++）。
 \end{frame}
 
 \section{题解代码思路}
